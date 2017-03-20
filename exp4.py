@@ -36,19 +36,12 @@ COLOUR_CORRECT_BLUR_FRAC = 0.6
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(PREDICTOR_PATH)
 
-class TooManyFaces(Exception):
-    pass
-
-class NoFaces(Exception):
-    pass
-
-
 def get_landmarks(im):
     rects = detector(im, 0)    
-        # for i in  predictor(frame, rects[0]).parts() :
-        #     cv2.circle(frame,tuple([i.x,i.y]), 3, (0,0,255), -1)
     if len(rects) == 1:
        return numpy.matrix([[p.x, p.y] for p in predictor(im, rects[0]).parts()])
+    else : 
+        None    
 
 def draw_convex_hull(im, points, color):
     points = cv2.convexHull(points)
@@ -93,10 +86,8 @@ def annotate_landmarks(im, landmarks):
 
     
 def transformation_from_points(points1, points2):
- 
     points1 = points1.astype(numpy.float64)
     points2 = points2.astype(numpy.float64)
-
     c1 = numpy.mean(points1, axis=0)
     c2 = numpy.mean(points2, axis=0)
     points1 -= c1
@@ -107,17 +98,17 @@ def transformation_from_points(points1, points2):
     points1 /= s1
     points2 /= s2
 
-    # U, S, Vt = numpy.linalg.svd(points1.T * points2)
+    U, S, Vt = numpy.linalg.svd(points1.T * points2)
 
     # # The R we seek is in fact the transpose of the one given by U * Vt. This
     # # is because the above formulation assumes the matrix goes on the right
     # # (with row vectors) where as our solution requires the matrix to be on the
     # # left (with column vectors).
-    # R = (U * Vt).T
+    R = (U * Vt).T
 
-    # return numpy.vstack([numpy.hstack(((s2 / s1) * R,
-    #                                    c2.T - (s2 / s1) * R * c1.T)),
-    #                      numpy.matrix([0., 0., 1.])])
+    return numpy.vstack([numpy.hstack(((s2 / s1) * R,
+                                       c2.T - (s2 / s1) * R * c1.T)),
+                         numpy.matrix([0., 0., 1.])])
 
 def warp_im(im, M, dshape):
     output_im = numpy.zeros(dshape, dtype=im.dtype)
@@ -151,34 +142,31 @@ cap = cv2.VideoCapture('video-1488820746.mp4')
 im = cv2.imread("Sunglasses-PNG-File.png", cv2.IMREAD_COLOR)
 im2 = cv2.resize(im, (720, 360))
 landmarks2 = numpy.load("sunglasses.npy")
-
+landmarks2 = numpy.asmatrix(landmarks2) 
 frame = None 
 while(cap.isOpened()):
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
-
     ret, frame = cap.read()
     landmarks1 = get_landmarks(frame)
-    
-    # print landmarks1
-    M = transformation_from_points(landmarks1[ALIGN_POINTS],
-                               landmarks2[ALIGN_POINTS])
-    
+    if landmarks1 != None :    
+        M = transformation_from_points(landmarks2[ALIGN_POINTS],
+            landmarks1[ALIGN_POINTS] ) 
+        for i in landmarks1 :
+            cv2.circle(frame,( numpy.array(i)[0][0],numpy.array(i)[0][1] ), 3, (0,0,255), -1)
 
-    # warped_mask = warp_im(mask, M, im1.shape)
-    # combined_mask = numpy.max([get_face_mask(im1, landmarks1), warped_mask],
-    #                           axis=0)
-
-    # warped_im2 = warp_im(im2, M, im1.shape)
-    # warped_corrected_im2 = correct_colours(im1, warped_im2, landmarks1)
-
-    # output_im = im1 * (1.0 - combined_mask) + warped_corrected_im2 * combined_mask
-
-    # cv2.imwrite('output.jpg', output_im)
-    # cv2.imshow('frame2',mask)
-
-        # warped_mask = warp_im(mask, M, im1.shape)
-    
+        mask = get_face_mask(frame, landmarks1)
+        warped_mask = warp_im(mask, M, im2.shape)
+        cv2.imshow('frame2',mask)
+        
+        combined_mask = numpy.max([get_face_mask(im2, landmarks2), warped_mask],
+                              axis=0)
+        warped_im2 = warp_im(frame, M, im2.shape)
+        # warped_corrected_im2 = correct_colours(im2, warped_im2, landmarks2)
+        output_im = im2 * (1.0 - combined_mask) 
+        cv2.imwrite('output.jpg', output_im)
+        cv2.imshow('frame3',output_im)    
+            
 
     cv2.imshow('frame',frame)
     
