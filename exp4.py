@@ -131,18 +131,25 @@ def correct_colours(im1, im2, landmarks1):
     im2_blur = cv2.GaussianBlur(im2, (blur_amount, blur_amount), 0)
 
     # Avoid divide-by-zero errors.
-    im2_blur += 128 * (im2_blur <= 1.0)
-
+    
+    temp = 128 * (im2_blur <= 1.0)
+    im2_blur = im2_blur + temp 
     return (im2.astype(numpy.float64) * im1_blur.astype(numpy.float64) /
                                                 im2_blur.astype(numpy.float64))
 
 
 
 cap = cv2.VideoCapture('video-1488820746.mp4')
-im = cv2.imread("Sunglasses-PNG-File.png", cv2.IMREAD_COLOR)
-im2 = cv2.resize(im, (720, 360))
-landmarks2 = numpy.load("sunglasses.npy")
-landmarks2 = numpy.asmatrix(landmarks2) 
+# im = cv2.imread("Sunglasses-PNG-File.png", cv2.IMREAD_COLOR)
+# im2 = cv2.resize(im, (720, 360))
+# landmarks2 = numpy.load("sunglasses.npy")
+# landmarks2 = numpy.asmatrix(landmarks2)
+# im2, landmarks2 = read_im_and_landmarks("1.jpg") 
+# im = cv2.imread("IMG_2387.JPG", cv2.IMREAD_COLOR)
+# im2 = cv2.resize(im, (720, 500))
+# cv2.imshow('frame5',im2)
+# cv2.waitKey(0)
+# landmarks2 = get_landmarks(im2)
 frame = None 
 while(cap.isOpened()):
     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -150,22 +157,25 @@ while(cap.isOpened()):
     ret, frame = cap.read()
     landmarks1 = get_landmarks(frame)
     if landmarks1 != None :    
-        M = transformation_from_points(landmarks2[ALIGN_POINTS],
-            landmarks1[ALIGN_POINTS] ) 
+        # M = transformation_from_points(landmarks2[ALIGN_POINTS],
+        #     landmarks1[ALIGN_POINTS] ) 
         for i in landmarks1 :
             cv2.circle(frame,( numpy.array(i)[0][0],numpy.array(i)[0][1] ), 3, (0,0,255), -1)
 
-        mask = get_face_mask(frame, landmarks1)
-        warped_mask = warp_im(mask, M, im2.shape)
-        cv2.imshow('frame2',mask)
+        # mask = get_face_mask(frame, landmarks1)
+        # warped_mask = warp_im(mask, M, frame.shape)
+        # cv2.imshow('frame2',mask)
         
-        combined_mask = numpy.max([get_face_mask(im2, landmarks2), warped_mask],
-                              axis=0)
-        warped_im2 = warp_im(frame, M, im2.shape)
-        # warped_corrected_im2 = correct_colours(im2, warped_im2, landmarks2)
-        output_im = im2 * (1.0 - combined_mask) 
-        cv2.imwrite('output.jpg', output_im)
-        cv2.imshow('frame3',output_im)    
+        # combined_mask = numpy.max([get_face_mask(im2, landmarks2), warped_mask],
+        #                       axis=0)
+        # # cv2.imshow('frame4',combined_mask)
+        # # cv2.imshow('frame5',warped_mask)
+         
+        # warped_im2 = warp_im(frame, M, im2.shape)
+        # # warped_corrected_im2 = correct_colours(im2, warped_im2, landmarks2)
+        # # output_im = im2 * (1.0 - combined_mask) 
+        # # cv2.imwrite('output.jpg', output_im)
+        # # cv2.imshow('frame3',output_im)    
             
 
     cv2.imshow('frame',frame)

@@ -18,14 +18,13 @@ NOSE_POINTS = list(range(27, 35))
 JAW_POINTS = list(range(0, 17))
 
 # Points used to line up the images.
-ALIGN_POINTS = (LEFT_BROW_POINTS + RIGHT_EYE_POINTS + LEFT_EYE_POINTS +
-                               RIGHT_BROW_POINTS + NOSE_POINTS + MOUTH_POINTS)
-
+# ALIGN_POINTS = (LEFT_BROW_POINTS + RIGHT_EYE_POINTS + LEFT_EYE_POINTS +
+#                                RIGHT_BROW_POINTS + NOSE_POINTS + MOUTH_POINTS)
+ALIGN_POINTS = (list(range(0, 2)) + list(range(15, 27))  + list(range(38, 48)) + [30, 32 ] )
 # Points from the second image to overlay on the first. The convex hull of each
 # element will be overlaid.
 OVERLAY_POINTS = [
     LEFT_EYE_POINTS + RIGHT_EYE_POINTS + LEFT_BROW_POINTS + RIGHT_BROW_POINTS,
-    NOSE_POINTS + MOUTH_POINTS,
 ]
 
 # Amount of blur to use during colour correction, as a fraction of the
@@ -35,20 +34,17 @@ COLOUR_CORRECT_BLUR_FRAC = 0.6
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(PREDICTOR_PATH)
 
-class TooManyFaces(Exception):
-    pass
+# class TooManyFaces(Exception):
+#     pass
 
-class NoFaces(Exception):
-    pass
+# class NoFaces(Exception):
+#     pass
 
 def get_landmarks(im):
-    rects = detector(im, 1)
+    rects = detector(im, 0)
     
-    if len(rects) > 1:
-        raise TooManyFaces
-    if len(rects) == 0:
-        raise NoFaces
-
+    if len(rects) != 1 : 
+        return None   
     return numpy.matrix([[p.x, p.y] for p in predictor(im, rects[0]).parts()])
 
 def annotate_landmarks(im, landmarks):
@@ -152,21 +148,38 @@ def correct_colours(im1, im2, landmarks1):
     im2_blur = im2_blur + temp
     return (im2.astype(numpy.float64) * im1_blur.astype(numpy.float64) /
                                                 im2_blur.astype(numpy.float64))
+cap = cv2.VideoCapture('video-1488820746.mp4')
+frame = None 
+im = cv2.imread("Sunglasses-PNG-File.png", cv2.IMREAD_COLOR)
+im2 = cv2.resize(im, (720, 360))
+landmarks2 = numpy.load("sunglasses.npy")
+landmarks2 = numpy.asmatrix(landmarks2)
+while(cap.isOpened()):
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+    ret, frame = cap.read()
 
-im1, landmarks1 = read_im_and_landmarks(sys.argv[1])
-im2, landmarks2 = read_im_and_landmarks(sys.argv[2])
+    cv2.imshow('frame',frame)
 
-M = transformation_from_points(landmarks1[ALIGN_POINTS],
-                               landmarks2[ALIGN_POINTS])
+    im1 = frame
+    landmarks1 = get_landmarks(im1)
 
-mask = get_face_mask(im2, landmarks2)
-warped_mask = warp_im(mask, M, im1.shape)
-combined_mask = numpy.max([get_face_mask(im1, landmarks1), warped_mask],
-                          axis=0)
+    if landmarks1 != None :   
 
-warped_im2 = warp_im(im2, M, im1.shape)
-warped_corrected_im2 = correct_colours(im1, warped_im2, landmarks1)
+        M = transformation_from_points(landmarks1[ALIGN_POINTS],
+                                       landmarks2[ALIGN_POINTS])
 
-output_im = im1 * (1.0 - combined_mask) + warped_corrected_im2 * combined_mask
+        mask = get_face_mask(im2, landmarks2)
+        warped_mask = warp_im(mask, M, im1.shape)
+        combined_mask = numpy.max([get_face_mask(im1, landmarks1), warped_mask],
+                                  axis=0)
 
-cv2.imwrite('output.jpg', output_im)
+        warped_im2 = warp_im(im2, M, im1.shape)
+        warped_corrected_im2 = correct_colours(im1, warped_im2, landmarks1)
+
+        output_im = im1 * (1.0 - combined_mask) + warped_corrected_im2 * combined_mask
+
+        # cv2.imwrite('output.jpg', output_im)
+        cv2.imshow('frame2',output_im/255)
+        cv2.waitKey(1)
+    # break
