@@ -1,3 +1,3 @@
 # snapchat-filter
 
-Code on Priyank and branch
+Code on Priyank and sdipendra branch
